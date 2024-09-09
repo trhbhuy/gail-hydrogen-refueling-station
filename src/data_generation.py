@@ -25,10 +25,10 @@ def process_datasets(results):
     """Aggregate and save datasets."""
     # Aggregate datasets
     logging.info("Aggregating datasets...")
-    dataset = dataset_aggregation(results, feature_keys=['time_step', 'rtp', 'p_pv_max', 'g_fcev_demand', 'sop_hss_prev'], label_keys=['g_ez', 'g_fc', 'g_fcev'])
+    dataset = dataset_aggregation(results, feature_keys=['time_step', 'rtp', 'p_pv_max', 'g_fcev_demand', 'sop_hss_prev'], label_keys=['g_ez', 'g_fc', 'g_fcev'], util_keys=['reward'])
 
     # Log dataset shapes
-    logging.info(f"Dataset shapes: data_seq: {dataset['data_seq'].shape}, label: {dataset['label'].shape}")
+    logging.info(f"Dataset shapes: data_seq: {dataset['data_seq'].shape}, label: {dataset['label'].shape}, reward: {dataset['reward'].shape}")
 
     # Save datasets
     logging.info("Saving aggregated datasets...")

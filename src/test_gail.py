@@ -3,10 +3,9 @@ import argparse
 import numpy as np
 import logging
 
-import stable_baselines3
 import stable_baselines3 as sb3
 from imitation.policies.serialize import load_stable_baselines_model
-from solver.platform.test_env import HydrogenEnv
+from solver.platform.env import HydrogenEnv
 from utils.test_util import cal_metric, load_dataset
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -35,7 +34,7 @@ def load_model(args, env):
     """
     Initialize and load the model with pretrained weights.
     """
-    algo_cls = getattr(stable_baselines3, args.gen_algo.upper(), None)
+    algo_cls = getattr(sb3, args.gen_algo.upper(), None)
 
     if algo_cls is None:
         raise ValueError(f"Algorithm '{args.gen_algo}' is not supported.")

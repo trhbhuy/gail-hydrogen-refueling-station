@@ -8,7 +8,7 @@ def initialize_records() -> Dict[str, list]:
     return {key: [] for key in [
         'ObjVal', 'p_grid_pur', 'u_grid_pur', 'p_grid_exp', 'u_grid_exp', 'p_pv',
         'p_ez', 'g_ez', 'u_ez', 'p_fc', 'g_fc', 'u_fc', 'p_fcev', 'g_fcev', 'u_fcev', 'sop_hss',
-        'rtp', 'p_pv_max', 'g_fcev_demand'
+        'rtp', 'p_pv_max', 'g_fcev_demand', 'reward'
     ]}
 
 def process_single_scenario(microgrid, data, start_idx, end_idx, scn) -> Dict[str, np.ndarray]:

@@ -45,7 +45,7 @@ conda activate torchtf
     │   │   │   ├── hydrogen_storage.py
     │   │   │   ├── renewables.py
     │   │   │   └── utility_grid.py
-    │   │   ├── test_env.py                 # Hydrogen staion environment setup and management (for training & testing)
+    │   │   ├── env.py                 # Hydrogen staion environment setup and management (for training & testing)
     │   │   ├── hydrogen_station.py        # Microgrid optimization logic (for data generation)
     │   │   └── util.py
     │   ├── utils/

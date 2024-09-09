@@ -22,6 +22,9 @@ class HydrogenStation:
         self.T_set = cfg.T_SET
         self.delta_t = cfg.DELTA_T
 
+        self.phi_fcev = cfg.PHI_FCEV
+        self.phi_rtp = cfg.PHI_RTP
+
         # Initialize the components of the microgrid        
         self.grid = Grid(cfg.T_SET, cfg.DELTA_T, cfg.P_GRID_PUR_MAX, cfg.P_GRID_EXP_MAX, cfg.PHI_RTP)
         self.pv = PV(cfg.T_SET, cfg.DELTA_T, cfg.P_PV_RATE, cfg.N_PV, cfg.PHI_PV)
@@ -62,6 +65,11 @@ class HydrogenStation:
         # Cost exchange with utility grid
         F_grid = self.grid.get_cost(rtp, p_grid_pur, p_grid_exp)
 
+        # Reward
+        reward = model.addVars(self.T_set, name="reward")
+        for t in self.T_set:
+            model.addConstr(reward[t] == g_fcev[t] * self.phi_fcev - (self.delta_t * (p_grid_pur[t] * rtp[t] - p_grid_exp[t] * rtp[t] * self.phi_rtp)) - F_ez[t] - F_fc[t])
+
         # Define problem and solve
         model.setObjective(F_fcev - F_grid - F_ez.sum() - F_fc.sum())
         model.optimize()
@@ -83,8 +91,9 @@ class HydrogenStation:
                 'g_fcev': g_fcev,
                 'u_fcev': u_fcev,
                 'sop_hss': sop_hss,
+                'reward': reward
             }
-
+            
             # Call the function to create the results dictionary
             results = create_results_dict(model, variable_dict, self.T_set)
 

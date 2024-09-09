@@ -17,7 +17,7 @@ from imitation.policies.serialize import save_stable_model
 from imitation.data import serialize
 from imitation.util import logger
 
-from solver.platform.test_env import HydrogenEnv
+from solver.platform.env import HydrogenEnv
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 
