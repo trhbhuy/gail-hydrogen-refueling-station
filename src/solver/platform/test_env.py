@@ -1,10 +1,6 @@
-# src/solver/platform/hrs_env.py
-
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-from typing import Callable, Dict, Tuple, Optional
-
 import gurobipy as gp
 from gurobipy import GRB
 
@@ -12,7 +8,7 @@ from .. import config as cfg
 from ..methods.data_loader import load_data
 from .util import scaler_loader, check_boundary_constraint, check_setpoint
 
-class HRSEnv(gym.Env):
+class HydrogenEnv(gym.Env):
     def __init__(self, is_train: bool = True):
         """Initialize the microgrid environment."""
         # General parameters

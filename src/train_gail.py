@@ -1,5 +1,3 @@
-# src/train_gail.py
-
 import os
 import argparse
 import numpy as np
@@ -9,31 +7,26 @@ import logging
 
 import torch
 import torch.nn as nn
-
 import stable_baselines3 as sb3
-
 from imitation.data.wrappers import RolloutInfoWrapper
 from stable_baselines3.common.vec_env import DummyVecEnv
-
 from imitation.algorithms.adversarial.gail import GAIL
 from imitation.rewards.reward_nets import BasicRewardNet
 from imitation.util.networks import RunningNorm
 from imitation.policies.serialize import save_stable_model
-# from imitation.scripts.train_adversarial import save
 from imitation.data import serialize
 from imitation.util import logger
 
-from solver.platform.hrs_env import HRSEnv
+from solver.platform.test_env import HydrogenEnv
 
 BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
 
+# Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def parse_option():
-    """
-    Parse command-line arguments for the training script.
-    """
-    parser = argparse.ArgumentParser(description='Train a GAIL model.')
+    """Parse command-line arguments for the training script."""
+    parser = argparse.ArgumentParser('Argument for training')
 
     # Adversarial hyperparameters
     parser.add_argument('--adversarial_algo', type=str, choices=['gail', 'airl'], default='gail')
@@ -62,6 +55,11 @@ def parse_option():
 
     opt = parser.parse_args()
 
+    return opt
+
+
+def set_hyperparams(opt):
+    """Set hyperparameters based on parsed options."""
     if opt.batch_size > opt.n_steps:
         opt.batch_size = opt.n_steps
 
@@ -96,33 +94,19 @@ def parse_option():
         ),
     }
 
-    # Set up the logging directory
+    # Set up the logging directory and model name
     log_dir = BASE_DIR / "logs"
-
-    # Create a descriptive model name based on hyperparameters
     opt.model_name = f"{opt.adversarial_algo}_{opt.gen_algo}_lr{opt.learning_rate}_bs{opt.batch_size}_{opt.n_steps}n_steps"
-
-    # Define the save folder path using pathlib
     opt.save_folder = log_dir / opt.model_name / "checkpoints" / "final"
-
-    # Define the folder path of the expert trajectories
     opt.trajectories_path = BASE_DIR / 'data' / 'trajectories'
 
+    # Ensure save folder exists
     opt.save_folder.mkdir(parents=True, exist_ok=True)
 
     return opt
 
 def set_rl_algo(opt, env):
-    """
-    Initialize the learner.
-
-    Args:
-        opt (Namespace): Parsed command-line arguments.
-        env: The environment to be used by the RL algorithm.
-
-    Returns:
-        The initialized RL algorithm model.
-    """
+    """Initialize the learner."""
     algo_cls = getattr(sb3, opt.gen_algo.upper(), None)
 
     if algo_cls is None:
@@ -145,20 +129,23 @@ def save_model(trainer, save_path: pathlib.Path):
     logging.info(f'Model saved successfully at {save_path}')
     del trainer  # Explicitly delete to free up memory
 
-def main():
-    """
-    Main function to train the model.
-    """
-    opt = parse_option()
+def set_seed(seed):
+    """Seed all random number generators for reproducibility."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
 
-    # Seed all random number generators for reproducibility
-    random.seed(opt.seed)
-    np.random.seed(opt.seed)
-    torch.manual_seed(opt.seed)
-    torch.cuda.manual_seed_all(opt.seed)  # If using CUDA
+def main():
+    """Main function to train the model."""
+    opt = parse_option()
+    opt = set_hyperparams(opt)
+
+    set_seed(opt.seed)
 
     # Set up the environment
-    env = HRSEnv(is_train = True)
+    env = HydrogenEnv(is_train = True)
     venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])  # Wrap a single environment -- only useful for simple testing like this
 
     # Load the expert trajectories
@@ -168,9 +155,6 @@ def main():
     learner = set_rl_algo(opt, venv)
 
     # Set up the logger
-    # tmpdir = "Logger"
-    # tmpdir = None  # No directory will be created
-    # custom_logger = logger.configure(tmpdir, format_strs=["stdout", "log"])
     custom_logger = logger.configure(format_strs=[])
 
     # Set up the reward network

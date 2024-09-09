@@ -59,7 +59,7 @@ def preprocess_data(args):
     # Step 3: Scale the data
     logging.info("Scaling training data")
     data_train_scaled, data_scaler = scaling_data(data_train, args.scaler_type)
-    label_train_scaled, label_scaler = scaling_data(label_train, args.scaler_type)
+    label_train_scaled, label_scaler = scaling_data(label_train, args.scaler_type, feature_range=(-1, 1))
 
     # Save the scalers
     logging.info("Saving scalers")

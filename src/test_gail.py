@@ -1,13 +1,12 @@
-# src/test_gail.py
-
 import os
 import argparse
 import numpy as np
 import logging
 
+import stable_baselines3
 import stable_baselines3 as sb3
 from imitation.policies.serialize import load_stable_baselines_model
-from solver.platform.hrs_env import HRSEnv
+from solver.platform.test_env import HydrogenEnv
 
 from utils.test_util import cal_metric, load_dataset
 
@@ -44,7 +43,7 @@ def load_model(args, env):
     Returns:
         model: The initialized RL algorithm model with pretrained weights.
     """
-    algo_cls = getattr(sb3, args.gen_algo.upper(), None)
+    algo_cls = getattr(stable_baselines3, args.gen_algo.upper(), None)
 
     if algo_cls is None:
         raise ValueError(f"Algorithm '{args.gen_algo}' is not supported.")
@@ -123,6 +122,9 @@ def evaluate(args, model, env, best_rewards):
     # Calculate evaluation metrics (e.g., MAE, MAPE) based on the true values and predictions
     evaluation_metrics = cal_metric(best_rewards, predicted_rewards)
     
+    # for i in range(len(predicted_rewards)):
+    #     print(f"Predicted reward: {predicted_rewards[i]}, True reward: {best_rewards[i]}")
+
     # Print the evaluation results
     if args.verbose:
         logging.info(f"Overall MAE: {evaluation_metrics['overall_mae']:.4f}, Overall MAPE: {evaluation_metrics['overall_mape']:.4f}%")
@@ -143,7 +145,7 @@ def test(args):
     best_rewards = load_dataset(args)
 
     # Set up the environment
-    env = HRSEnv(is_train=False)
+    env = HydrogenEnv(is_train=False)
 
     # Load the pre-trained model with the specified configuration
     model = load_model(args, env)
