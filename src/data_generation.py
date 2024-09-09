@@ -5,7 +5,7 @@ import time
 import logging
 from solver.platform.hydrogen_station import HydrogenStation
 from solver.methods.data_loader import load_data
-from solver.methods.run_scenario import run_scenario
+from solver.methods.optimization import run_optim
 from solver.methods.dataset_aggregation import dataset_aggregation
 
 from utils.common_util import save_results, save_dataset
@@ -26,7 +26,7 @@ def main():
     num_scenarios = len(data['p_pv_max']) // microgrid.T_num
 
     # Step 1: Process scenarios and store results
-    results = run_scenario(microgrid, data, num_scenarios)
+    results = run_optim(microgrid, data)
 
     # Save the results to CSV files
     save_results(results)
