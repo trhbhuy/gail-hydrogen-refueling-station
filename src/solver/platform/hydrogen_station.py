@@ -12,6 +12,7 @@ from .components.electrolyzer import EZ
 from .components.fuel_cell import FC
 from .components.compressor import FCEV
 from .components.hydrogen_storage import HSS
+from .util import create_results_dict
 
 class HydrogenStation:
     def __init__(self):
@@ -21,13 +22,13 @@ class HydrogenStation:
         self.T_set = cfg.T_SET
         self.delta_t = cfg.DELTA_T
 
-        # Initialize the components of the microgrid
-        self.grid = Grid(cfg.P_GRID_PUR_MAX, cfg.R_GRID_PUR, cfg.P_GRID_EXP_MAX, cfg.R_GRID_EXP, cfg.PHI_RTP, cfg.T_NUM, cfg.T_SET, cfg.DELTA_T)
-        self.pv = PV(cfg.P_PV_RATE, cfg.N_PV, cfg.PHI_PV, cfg.T_NUM, cfg.T_SET)
-        self.ez = EZ(cfg.P_EZ_MAX, cfg.P_EZ_MIN, cfg.R_EZ, cfg.N_EZ, cfg.K_EZ, cfg.T_EZ, cfg.M_EZ, cfg.Q_EZ, cfg.LHV, cfg.T_NUM, cfg.T_SET, cfg.DELTA_T)     
-        self.fc = FC(cfg.P_FC_MAX, cfg.P_FC_MIN, cfg.R_FC, cfg.N_FC, cfg.K_FC, cfg.T_FC, cfg.M_FC, cfg.Q_FC, cfg.LHV, cfg.T_NUM, cfg.T_SET, cfg.DELTA_T)
-        self.fcev = FCEV(cfg.N_COMP, cfg.Z_COMP, cfg.PHI_FCEV, cfg.T_NUM, cfg.T_SET, cfg.DELTA_T)
-        self.hss = HSS(cfg.SOP_HSS_MAX, cfg.SOP_HSS_MIN, cfg.DT_HSS, cfg.SOP_HSS_SETPOINT, cfg.Y_HSS, cfg.T_NUM, cfg.T_SET, cfg.DELTA_T)
+        # Initialize the components of the microgrid        
+        self.grid = Grid(cfg.T_SET, cfg.DELTA_T, cfg.P_GRID_PUR_MAX, cfg.P_GRID_EXP_MAX, cfg.PHI_RTP)
+        self.pv = PV(cfg.T_SET, cfg.DELTA_T, cfg.P_PV_RATE, cfg.N_PV, cfg.PHI_PV)
+        self.ez = EZ(cfg.T_SET, cfg.DELTA_T, cfg.P_EZ_MAX, cfg.P_EZ_MIN, cfg.R_EZ, cfg.N_EZ, cfg.K_EZ, cfg.T_EZ, cfg.M_EZ, cfg.Q_EZ, cfg.LHV)
+        self.fc = FC(cfg.T_SET, cfg.DELTA_T, cfg.P_FC_MAX, cfg.P_FC_MIN, cfg.R_FC, cfg.N_FC, cfg.K_FC, cfg.T_FC, cfg.M_FC, cfg.Q_FC, cfg.LHV)
+        self.fcev = FCEV(cfg.T_SET, cfg.DELTA_T, cfg.N_COMP, cfg.Z_COMP, cfg.PHI_FCEV)
+        self.hss = HSS(cfg.T_SET, cfg.DELTA_T, cfg.SOP_HSS_MAX, cfg.SOP_HSS_MIN, cfg.DT_HSS, cfg.SOP_HSS_SETPOINT, cfg.Y_HSS)
 
     def optim(self, rtp: np.ndarray, p_pv_max: np.ndarray, g_fcev_demand: np.ndarray) -> Dict[str, np.ndarray]:
         """Optimization method for the hydrogen refueling station."""
@@ -37,7 +38,7 @@ class HydrogenStation:
         model.Params.LogToConsole = 0
 
         # Initialize variables for each component
-        p_grid_pur, u_grid_pur, p_grid_exp, u_grid_exp = self.grid.add_variables(model)
+        p_grid_pur, p_grid_exp, u_grid_pur, u_grid_exp = self.grid.add_variables(model)
         p_pv = self.pv.add_variables(model, p_pv_max)
         p_ez, g_ez, u_ez, F_ez = self.ez.add_variables(model)
         p_fc, g_fc, u_fc, F_fc = self.fc.add_variables(model)
@@ -45,15 +46,15 @@ class HydrogenStation:
         sop_hss = self.hss.add_variables(model)
 
         # Add constraints for each component
-        self.grid.add_constraints(model, p_grid_pur, u_grid_pur, p_grid_exp, u_grid_exp)
+        self.grid.add_constraints(model, p_grid_pur, p_grid_exp, u_grid_pur, u_grid_exp)
         self.ez.add_constraints(model, p_ez, g_ez, u_ez, F_ez)
         self.fc.add_constraints(model, p_fc, g_fc, u_fc, F_fc)
         self.fcev.add_constraints(model, p_fcev, g_fcev, u_fcev, g_fcev_demand)
         self.hss.add_constraints(model, sop_hss, g_ez, g_fc, g_fcev, u_ez, u_fc)
 
         # Energy balance
-        for i in self.T_set:
-            model.addConstr(p_grid_pur[i] + p_pv[i] + p_fc[i] == p_grid_exp[i] + p_ez[i] + p_fcev[i])
+        for t in self.T_set:
+            model.addConstr(p_grid_pur[t] + p_pv[t] + p_fc[t] == p_grid_exp[t] + p_ez[t] + p_fcev[t])
 
         # Profit cost of FCEV refueling station
         F_fcev = self.fcev.get_revenue(g_fcev)
@@ -66,25 +67,33 @@ class HydrogenStation:
         model.optimize()
 
         if model.status == GRB.OPTIMAL:
-            # Return the results
-            results = {
-                'ObjVal': model.ObjVal,
-                'p_grid_pur': p_grid_pur.X,
-                'u_grid_pur': u_grid_pur.X,
-                'p_grid_exp': p_grid_exp.X,
-                'u_grid_exp': u_grid_exp.X,
-                'p_pv': p_pv.X,
-                'p_ez': p_ez.X,
-                'g_ez': g_ez.X,
-                'u_ez': u_ez.X,
-                'p_fc': p_fc.X,
-                'g_fc': g_fc.X,
-                'u_fc': u_fc.X,
-                'p_fcev': p_fcev.X,
-                'g_fcev': g_fcev.X,
-                'u_fcev': u_fcev.X,
-                'sop_hss': sop_hss.X,
+            variable_dict = {
+                'p_grid_pur': p_grid_pur,
+                'p_grid_exp': p_grid_exp,
+                'u_grid_pur': u_grid_pur,
+                'u_grid_exp': u_grid_exp,
+                'p_pv': p_pv,
+                'p_ez': p_ez,
+                'g_ez': g_ez,
+                'u_ez': u_ez,
+                'p_fc': p_fc,
+                'g_fc': g_fc,
+                'u_fc': u_fc,
+                'p_fcev': p_fcev,
+                'g_fcev': g_fcev,
+                'u_fcev': u_fcev,
+                'sop_hss': sop_hss,
             }
+
+            # Call the function to create the results dictionary
+            results = create_results_dict(model, variable_dict, self.T_set)
+
+            # Add other values like ev_time_range, rtp, etc. separately
+            results.update({
+                'rtp': rtp,
+                'p_pv_max': p_pv_max,
+                'g_fcev_demand': g_fcev_demand,
+            })
         else:
             raise RuntimeError(f"Optimization was unsuccessful. Model status: {model.status}")
 

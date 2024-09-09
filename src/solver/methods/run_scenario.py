@@ -1,5 +1,3 @@
-# # src/solver/methods/run_scenario.py
-
 import logging
 import numpy as np
 from typing import Dict
@@ -48,9 +46,9 @@ def run_scenario(microgrid: object, data: Dict[str, np.ndarray], num_scenarios: 
     # Convert lists to arrays for final storage
     records = {key: np.array(records[key]) for key in records.keys()}
 
-    # Reshape input data and store in the dictionary
-    scenario_data = reshape_data(data, num_scenarios)
-    records.update(scenario_data)
+    # # Reshape input data and store in the dictionary
+    # scenario_data = reshape_data(data, num_scenarios)
+    # records.update(scenario_data)
     
     # Calculate and add auxiliary variables
     records = feature_engineering(microgrid, records)

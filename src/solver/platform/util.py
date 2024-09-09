@@ -72,8 +72,18 @@ def check_setpoint(value, setpoint, tolerance_threshold=1e-5):
     """
     return get_deviation(value, setpoint, tolerance_threshold)
     
-def extract_results(variable, inner_set: np.ndarray, outer_set: Optional[np.ndarray] = None) -> np.ndarray:
+def get_vars_results(variable, inner_set: np.ndarray, outer_set: Optional[np.ndarray] = None) -> np.ndarray:
     """Extract results from a given variable for the specified sets."""
     if outer_set is not None:
         return np.array([[variable[ii, tt].X for tt in inner_set] for ii in outer_set])
     return np.array([variable[tt].X for tt in inner_set])
+
+def create_results_dict(model, variable_dict, time_set):
+    """Create a results dictionary by extracting results from variables."""
+    results = {'ObjVal': model.ObjVal}
+    
+    # Extract results for all variables in the dictionary
+    for key, variable in variable_dict.items():
+        results[key] = get_vars_results(variable, time_set)
+    
+    return results
