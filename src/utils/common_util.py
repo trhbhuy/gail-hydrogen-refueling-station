@@ -1,5 +1,3 @@
-# src/utils/common_utils/.py
-
 import os
 import pandas as pd
 import pickle

@@ -88,12 +88,12 @@ class HydrogenStation:
             # Call the function to create the results dictionary
             results = create_results_dict(model, variable_dict, self.T_set)
 
-            # Add other values like ev_time_range, rtp, etc. separately
+            # Add other values
             results.update({
                 'rtp': rtp,
                 'p_pv_max': p_pv_max,
-                'g_fcev_demand': g_fcev_demand,
-            })
+                'g_fcev_demand': g_fcev_demand
+                })
         else:
             raise RuntimeError(f"Optimization was unsuccessful. Model status: {model.status}")
 
