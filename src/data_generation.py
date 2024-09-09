@@ -46,7 +46,7 @@ def main():
         if data is None:
             raise ValueError("Failed to load data.")
 
-        # Step 2: Initialize the HEMS platform
+        # Step 2: Initialize the hydrogen refueling station platform
         logging.info("Initializing Microgrid...")
         microgrid = HydrogenStation()
 
