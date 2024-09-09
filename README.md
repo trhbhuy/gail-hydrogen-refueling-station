@@ -1,4 +1,4 @@
-# Real-time power scheduling for isolated microgrid using Dense Residual Neural Network (ResnesD - IMG)
+# Generative adversarial imitation learning for hydrogen refueling station scheduling (GAIL - HRS)
 
 This repository contains the implementation for our paper: ["Robust real-time energy management for a hydrogen refueling station using generative adversarial imitation learning"](https://doi.org/10.1016/j.apenergy.2024.123847), published in the Applied Energy.
 
@@ -12,6 +12,14 @@ We opensource in this repository the model used for the ISO-NE test case. Code f
 
 The dataset contains load and temperature data from 2003 to 2014. -->
 
+## Setup 
+
+```bash
+conda env create -n torchtf --file env.yml
+conda activate torchtf
+```
+
+
 ## Structure
 
 ```bash
@@ -23,35 +31,35 @@ The dataset contains load and temperature data from 2003 to 2014. -->
 └── src/
     ├── solver/
     │   ├── methods/
-    │   │   ├── data_loader.py             # Data loading methods
-    │   │   ├── dataset_aggregation.py     # Dataset aggregation logic
-    │   │   ├── feature_engineering.py     # Feature engineering scripts
-    │   │   ├── run_scenario.py            # Running scenarios or simulations
-    │   │   └── util.py                    # Utility functions specific to methods
+    │   │   ├── data_loader.py
+    │   │   ├── dataset_aggregation.py
+    │   │   ├── feature_engineering.py
+    │   │   ├── optimization.py
+    │   │   └── util.py
     │   ├── platform/
     │   │   ├── components/                # Components of the microgrid platform
     │   │   │   ├── __init__.py
-    │   │   │   ├── compressor.py          # Compressor component logic
-    │   │   │   ├── electrolyzer.py        # Electrolyzer component logic
-    │   │   │   ├── fuel_cell.py           # Fuel cell component logic
-    │   │   │   ├── hydrogen_storage.py    # Hydrogen storage component logic
-    │   │   │   ├── renewables.py          # Renewable energy sources (PV, Wind, etc.)
-    │   │   │   └── utility_grid.py        # Utility grid connection logic
-    │   │   ├── hrs_env.py                 # Hydrogen staion environment setup and management (for training & testing)
+    │   │   │   ├── compressor.py
+    │   │   │   ├── electrolyzer.py
+    │   │   │   ├── fuel_cell.py
+    │   │   │   ├── hydrogen_storage.py
+    │   │   │   ├── renewables.py
+    │   │   │   └── utility_grid.py
+    │   │   ├── test_env.py                 # Hydrogen staion environment setup and management (for training & testing)
     │   │   ├── hydrogen_station.py        # Microgrid optimization logic (for data generation)
-    │   │   └── util.py                    # Utility functions for the platform
-    │   ├── utils/                         # General utility functions
+    │   │   └── util.py
+    │   ├── utils/
     │   │   ├── __init__.py
-    │   │   ├── file_util.py               # File handling utilities
-    │   │   └── numeric_util.py            # Numerical operations utilities
+    │   │   ├── file_util.py
+    │   │   └── numeric_util.py
     │   ├── __init__.py
     │   └── config.py                      # Configuration file for parameters
     ├── utils/                             # High-level utility scripts
     │   ├── __init__.py
-    │   ├── common_util.py                 # Common utility functions
-    │   ├── preprocessing_util.py          # Preprocessing utility functions
-    │   ├── test_util.py                   # Utility functions for testing
-    │   └── train_util.py                  # Utility functions for training
+    │   ├── common_util.py
+    │   ├── preprocessing_util.py
+    │   ├── test_util.py
+    │   └── train_util.py
     ├── data_generation.py                 # Data generation scripts
     ├── preprocessing.py                   # Data preprocessing scripts
     ├── test_gail.py                       # Model testing scripts

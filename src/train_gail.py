@@ -145,7 +145,7 @@ def main():
     set_seed(opt.seed)
 
     # Set up the environment
-    env = HydrogenEnv(is_train = True)
+    env = HydrogenEnv(is_train=True)
     venv = DummyVecEnv([lambda: RolloutInfoWrapper(env)])  # Wrap a single environment -- only useful for simple testing like this
 
     # Load the expert trajectories

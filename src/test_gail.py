@@ -7,11 +7,11 @@ import stable_baselines3
 import stable_baselines3 as sb3
 from imitation.policies.serialize import load_stable_baselines_model
 from solver.platform.test_env import HydrogenEnv
-
 from utils.test_util import cal_metric, load_dataset
 
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 
+# Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def parse_args():
@@ -19,7 +19,6 @@ def parse_args():
     Parse command-line arguments for the testing script.
     """
     parser = argparse.ArgumentParser(description='Arguments for testing the trained model.')
-    # parser.add_argument('--env', type=str, default='microgrid', help='Environment to be used for testing')
     parser.add_argument('--num_test_scenarios', type=int, default=91, help='Number of test scenarios')
     parser.add_argument('--data_path', type=str, default='data/processed/ObjVal.csv', help='Path to the test dataset')
     parser.add_argument('--adversarial_algo', type=str, choices=['gail', 'airl'], default='gail', help='Adversarial algorithm used during training')
@@ -35,13 +34,6 @@ def parse_args():
 def load_model(args, env):
     """
     Initialize and load the model with pretrained weights.
-
-    Args:
-        args (Namespace): Parsed command-line arguments.
-        env: The environment to be used by the RL algorithm.
-
-    Returns:
-        model: The initialized RL algorithm model with pretrained weights.
     """
     algo_cls = getattr(stable_baselines3, args.gen_algo.upper(), None)
 
@@ -64,14 +56,6 @@ def load_model(args, env):
 def inference(args, model, env):
     """
     Perform inference using the provided model in the specified environment.
-
-    Args:
-        args: Configuration arguments containing environment and model details.
-        model: The pre-trained model used for inference.
-        verbose (bool): If True, prints detailed information during inference.
-
-    Returns:
-        tuple: Aggregated rewards and episode information as numpy arrays.
     """
     # Containers for aggregated rewards and episode information
     aggregated_rewards = []
@@ -106,40 +90,22 @@ def inference(args, model, env):
 
 def evaluate(args, model, env, best_rewards):
     """
-    Evaluate the model using the provided dataset and calculate evaluation metrics.
-
-    Args:
-        args: Parsed command-line arguments.
-        model: The trained model to be evaluated.
-        best_rewards: True rewards for comparison.
-
-    Returns:
-        dict: A dictionary containing evaluation metrics.
+    Evaluate the models and calculate metrics based on predictions vs actual rewards.
     """
     # Perform inference with the model
     predicted_rewards, inference_info = inference(args, model, env)
     
     # Calculate evaluation metrics (e.g., MAE, MAPE) based on the true values and predictions
-    evaluation_metrics = cal_metric(best_rewards, predicted_rewards)
+    metrics = cal_metric(best_rewards, predicted_rewards)
     
-    # for i in range(len(predicted_rewards)):
-    #     print(f"Predicted reward: {predicted_rewards[i]}, True reward: {best_rewards[i]}")
-
     # Print the evaluation results
-    if args.verbose:
-        logging.info(f"Overall MAE: {evaluation_metrics['overall_mae']:.4f}, Overall MAPE: {evaluation_metrics['overall_mape']:.4f}%")
+    logging.info(f"Overall MAE: {metrics['overall_mae']:.4f}, Overall MAPE: {metrics['overall_mape']:.4f}%")
     
-    return evaluation_metrics, inference_info
+    return metrics, inference_info
 
 def test(args):
     """
-    Test the model by evaluating its predictions against the actual rewards.
-
-    Args:
-        args: Parsed command-line arguments.
-
-    Returns:
-        dict: A dictionary containing evaluation metrics.
+    Test the model by evaluating its predictions against the best rewards.
     """
     # Load the actual rewards (ground truth) from the dataset
     best_rewards = load_dataset(args)
@@ -151,9 +117,9 @@ def test(args):
     model = load_model(args, env)
 
     # Evaluate the model's predictions against the actual rewards
-    evaluation_metrics, inference_info = evaluate(args, model, env, best_rewards)
+    metrics, inference_info = evaluate(args, model, env, best_rewards)
 
-    return evaluation_metrics, inference_info
+    return metrics, inference_info
 
 #python3 src/test_gail.py --num_test_scenarios 90 --adversarial_algo gail --gen_algo ppo --learning_rate 0.00015 --batch_size 8 --n_steps 2048
 if __name__ == '__main__':

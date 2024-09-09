@@ -1,3 +1,4 @@
+import logging
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -8,68 +9,19 @@ from .. import config as cfg
 from ..methods.data_loader import load_data
 from .util import scaler_loader, check_boundary_constraint, check_setpoint
 
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 class HydrogenEnv(gym.Env):
     def __init__(self, is_train: bool = True):
         """Initialize the microgrid environment."""
-        # General parameters
-        self.T_num = cfg.T_NUM
-        self.T_set = cfg.T_SET
-        self.delta_t = cfg.DELTA_T
-        self.penalty_coefficient = cfg.PENALTY_COEFFICIENT
         self.is_train = is_train
-
-        # Grid exchange parameters
-        self.p_grid_pur_max = cfg.P_GRID_PUR_MAX
-        self.r_grid_pur = cfg.R_GRID_PUR
-        self.p_grid_exp_max = cfg.P_GRID_EXP_MAX
-        self.r_grid_exp = cfg.R_GRID_EXP
-        self.phi_rtp = cfg.PHI_RTP
-
-        # Parameters for Generation Units
-        self.p_pv_rate = cfg.P_PV_RATE
-        self.n_pv = cfg.N_PV
-        self.phi_pv = cfg.PHI_PV
-        
-        # Electrolyzer (EZ) Parameters
-        self.LHV = cfg.LHV
-        self.p_ez_max = cfg.P_EZ_MAX
-        self.p_ez_min = cfg.P_EZ_MIN
-        self.r_ez = cfg.R_EZ
-        self.n_ez = cfg.N_EZ
-        self.k_ez = cfg.K_EZ
-        self.T_ez = cfg.T_EZ
-        self.m_ez = cfg.M_EZ
-        self.q_ez = cfg.Q_EZ
-        self.g_ez_max = cfg.G_EZ_MAX
-
-        # Fuel Cell (FC) Parameters
-        self.p_fc_max = cfg.P_FC_MAX
-        self.p_fc_min = cfg.P_FC_MIN
-        self.r_fc = cfg.R_FC
-        self.n_fc = cfg.N_FC
-        self.k_fc = cfg.K_FC
-        self.T_fc = cfg.T_FC
-        self.m_fc = cfg.M_FC
-        self.q_fc = cfg.Q_FC
-        self.g_fc_max = cfg.G_FC_MAX
-
-        # FCEV Refueling Station Parameters
-        self.n_comp = cfg.N_COMP
-        self.z_comp = cfg.Z_COMP
-        self.phi_fcev = cfg.PHI_FCEV
-
-        # Hydrogen Storage System (HSS) Parameters
-        self.sop_hss_max = cfg.SOP_HSS_MAX
-        self.sop_hss_min = cfg.SOP_HSS_MIN
-        self.dt_hss = cfg.DT_HSS
-        self.sop_hss_setpoint = cfg.SOP_HSS_SETPOINT
-        self.Y_hss = cfg.Y_HSS
-        self.sop_hss_threshold = cfg.SOP_HSS_THRESHOLD
+        self._init_params()
     
         # Load the simulation data
         self.data = load_data(is_train=self.is_train)
         self.num_scenarios = len(self.data['p_pv_max']) // self.T_num
-        print(f"Number of scenarios: {self.num_scenarios}")
+        logging.info(f"Number of scenarios: {self.num_scenarios}")
 
         # Load state and action scalers
         self.state_scaler, self.action_scaler = scaler_loader()
@@ -93,10 +45,10 @@ class HydrogenEnv(gym.Env):
 
         self.time_step = 0
 
-        # Calculate the index for the scenario data
-        index = self.scenario_seed * self.T_num
+        # Get the index for the scenario data
+        index = self._get_index(self.scenario_seed, self.time_step)
 
-        # Define the starting state
+        # Initialize state
         initial_state = np.array([
             self.time_step,  # time_step
             self.data['rtp'][index],  # rtp
@@ -116,35 +68,30 @@ class HydrogenEnv(gym.Env):
         current_state = self.state_scaler.inverse_transform([self.state])[0].astype(np.float32)
 
         # Decompose the state into individual variables
-        time_step = int(np.round(current_state[0]))
-        rtp, p_pv_max, g_fcev_demand, sop_hss_tempt = current_state[1:]
+        time_step, rtp, p_pv_max, g_fcev_demand, sop_hss_tempt = current_state
+        time_step = int(np.round(time_step))
 
         # Fetch the data for the current time step
-        base_idx = self.scenario_seed * self.T_num + time_step
-        p_pv_max = self.data['p_pv_max'][base_idx]
-        g_fcev_demand = self.data['g_fcev_demand'][base_idx]
+        base_idx = self._get_index(self.scenario_seed, time_step)
 
-        #<-- ### Process the action and update the state ### -->
         # Inverse transform the action using the scaler
         action_pred = self.action_scaler.inverse_transform(action.reshape(1, -1))[0]
         
         # Clip actions to be within their respective limits
         action_ez, action_fc, action_fcev = np.clip(action_pred[:3],
                                                     [0, 0, 0],
-                                                    [self.g_ez_max, self.g_fc_max, g_fcev_demand])        
-
-        # Updates the HSS state based on the action taken
-        sop_hss, g_ez, g_fc, g_fcev = self._update_hss(time_step, sop_hss_tempt, action_ez, action_fc, action_fcev, g_fcev_demand)
+                                                    [self.g_ez_max, self.g_fc_max, g_fcev_demand])
+        
+        g_ez, g_fc, g_fcev, sop_hss = self._update_hss(time_step, action_ez, action_fc, action_fcev, g_fcev_demand, sop_hss_tempt)
 
         # Solve the MILP optimization problem
-        p_grid_pur, u_grid_pur, p_grid_exp, u_grid_exp, p_pv, p_ez, u_ez, p_fc, u_fc, p_fcev, u_fcev, reward = self.optim(time_step, rtp, p_pv_max, g_ez, g_fc, g_fcev)
+        p_grid_pur, p_grid_exp, u_grid_pur, u_grid_exp, p_pv, p_ez, u_ez, p_fc, u_fc, p_fcev, u_fcev, reward = self._optim(rtp, p_pv_max, g_ez, g_fc, g_fcev)
 
-        #<-- ### Reward ### -->
         # Calculate the reward and penalties
         cumulative_penalty = self._get_penalty(time_step, p_grid_pur, p_grid_exp, sop_hss)
         reward += cumulative_penalty * self.penalty_coefficient
 
-        #<-- ### Prepare for next state ### -->
+        # Prepare next state
         next_state, terminated = self._get_obs(time_step, sop_hss)
 
         # Update the state for the next step
@@ -170,9 +117,13 @@ class HydrogenEnv(gym.Env):
 
     def _get_obs(self, time_step, sop_hss):
         """Prepare the next state and determine if the episode has terminated."""
+        # Increment the time step.
         time_step += 1
+
+        # Determine if the episode has terminated.
         terminated = time_step >= self.T_num
 
+        # Prepare the next state if the episode is ongoing.
         if not terminated:
             base_idx = self.scenario_seed * self.T_num + time_step
             next_state = np.array([
@@ -187,7 +138,7 @@ class HydrogenEnv(gym.Env):
 
         return next_state, terminated
 
-    def _update_hss(self, time_step, sop_hss_tempt, action_ez, action_fc, action_fcev, g_fcev_demand):
+    def _update_hss(self, time_step, action_ez, action_fc, action_fcev, g_fcev_demand, sop_hss_tempt):
         """Update the HSS state based on the action taken."""
         # Initialize charge and discharge power
         g_ez, g_fc = 0.0, 0.0
@@ -198,7 +149,7 @@ class HydrogenEnv(gym.Env):
             pass
         elif time_step == self.T_set[-1]:
             # Limit the charge power to not exceed sop_hss_max
-            g_ez, g_fc, g_fcev = self._postprocess_hss_setpoint(sop_hss_tempt, g_ez, g_fc, g_fcev, g_fcev_demand)
+            g_ez, g_fc, g_fcev = self._postprocess_hss_setpoint(g_ez, g_fc, g_fcev, g_fcev_demand, sop_hss_tempt)
 
         else:
             # Determine g_ez, g_fc, and g_fcev based on actions
@@ -209,14 +160,14 @@ class HydrogenEnv(gym.Env):
             sop_hss = sop_hss_tempt + self.delta_t * self.Y_hss * (g_ez - g_fc - g_fcev) - self.dt_hss * sop_hss_tempt
 
             # Postprocess action to meet all SOP of HSS bound constraints
-            g_ez, g_fc, g_fcev = self._postprocess_hss_bound(time_step, sop_hss, sop_hss_tempt, g_ez, g_fc, g_fcev, g_fcev_demand)
+            g_ez, g_fc, g_fcev = self._postprocess_hss_bound(time_step, g_ez, g_fc, g_fcev, g_fcev_demand, sop_hss, sop_hss_tempt)
 
         # Update SOP of HSS
         sop_hss = sop_hss_tempt + self.delta_t * self.Y_hss * (g_ez - g_fc - g_fcev) - self.dt_hss * sop_hss_tempt
 
-        return sop_hss, g_ez, g_fc, g_fcev
+        return g_ez, g_fc, g_fcev, sop_hss
 
-    def _postprocess_hss_bound(self, time_step, sop_hss, sop_hss_tempt, g_ez, g_fc, g_fcev, g_fcev_demand):
+    def _postprocess_hss_bound(self, time_step, g_ez, g_fc, g_fcev, g_fcev_demand, sop_hss, sop_hss_tempt):
         """Adjust HSS charging and discharging powers based on SOP constraints."""
         # Calculate common terms for charging and discharging power limits
         g_hss_ch_max = (self.sop_hss_max - sop_hss_tempt + self.dt_hss * sop_hss_tempt) / (self.delta_t * self.Y_hss)
@@ -238,7 +189,7 @@ class HydrogenEnv(gym.Env):
 
         return g_ez, g_fc, g_fcev
 
-    def _postprocess_hss_setpoint(self, sop_hss_tempt, g_ez, g_fc, g_fcev, g_fcev_demand):
+    def _postprocess_hss_setpoint(self, g_ez, g_fc, g_fcev, g_fcev_demand, sop_hss_tempt):
         """Adjust the charge power to match the HSS setpoint."""
         # Calculate maximum possible HSS charging power
         g_hss_ch_max = (self.sop_hss_max - sop_hss_tempt + self.dt_hss * sop_hss_tempt) / (self.delta_t * self.Y_hss)
@@ -300,7 +251,7 @@ class HydrogenEnv(gym.Env):
 
         return grid_penalty + hss_penalty
 
-    def optim(self, time_step, rtp, p_pv_max, g_ez, g_fc, g_fcev):
+    def _optim(self, rtp, p_pv_max, g_ez, g_fc, g_fcev):
         """Optimization method for the microgrid."""
         # Create a new model
         model = gp.Model()
@@ -336,8 +287,65 @@ class HydrogenEnv(gym.Env):
         # Define problem and solve
         model.setObjective(F_fcev - F_grid - F_ez - F_fc)
         model.optimize()
-
-        msgdict = {GRB.OPTIMAL : 'Optimal', GRB.INFEASIBLE : 'Infeasible model'}
-        model.optimize()
             
-        return p_grid_pur.x, u_grid_pur.x, p_grid_exp.x, u_grid_exp.x, p_pv.x, p_ez, u_ez, p_fc, u_fc, p_fcev, u_fcev, model.objVal
+        return p_grid_pur.x, p_grid_exp.x, u_grid_exp.x, u_grid_pur.x, p_pv.x, p_ez, u_ez, p_fc, u_fc, p_fcev, u_fcev, model.objVal
+
+    def _init_params(self):
+        """Initialize constants and parameters from the scenario configuration."""
+        # General parameters
+        self.T_num = cfg.T_NUM
+        self.T_set = cfg.T_SET
+        self.delta_t = cfg.DELTA_T
+        self.penalty_coefficient = cfg.PENALTY_COEFFICIENT
+
+        # Grid exchange parameters
+        self.p_grid_pur_max = cfg.P_GRID_PUR_MAX
+        self.r_grid_pur = cfg.R_GRID_PUR
+        self.p_grid_exp_max = cfg.P_GRID_EXP_MAX
+        self.r_grid_exp = cfg.R_GRID_EXP
+        self.phi_rtp = cfg.PHI_RTP
+
+        # Parameters for Generation Units
+        self.p_pv_rate = cfg.P_PV_RATE
+        self.n_pv = cfg.N_PV
+        self.phi_pv = cfg.PHI_PV
+        
+        # Electrolyzer (EZ) Parameters
+        self.LHV = cfg.LHV
+        self.p_ez_max = cfg.P_EZ_MAX
+        self.p_ez_min = cfg.P_EZ_MIN
+        self.r_ez = cfg.R_EZ
+        self.n_ez = cfg.N_EZ
+        self.k_ez = cfg.K_EZ
+        self.T_ez = cfg.T_EZ
+        self.m_ez = cfg.M_EZ
+        self.q_ez = cfg.Q_EZ
+        self.g_ez_max = cfg.G_EZ_MAX
+
+        # Fuel Cell (FC) Parameters
+        self.p_fc_max = cfg.P_FC_MAX
+        self.p_fc_min = cfg.P_FC_MIN
+        self.r_fc = cfg.R_FC
+        self.n_fc = cfg.N_FC
+        self.k_fc = cfg.K_FC
+        self.T_fc = cfg.T_FC
+        self.m_fc = cfg.M_FC
+        self.q_fc = cfg.Q_FC
+        self.g_fc_max = cfg.G_FC_MAX
+
+        # FCEV Refueling Station Parameters
+        self.n_comp = cfg.N_COMP
+        self.z_comp = cfg.Z_COMP
+        self.phi_fcev = cfg.PHI_FCEV
+
+        # Hydrogen Storage System (HSS) Parameters
+        self.sop_hss_max = cfg.SOP_HSS_MAX
+        self.sop_hss_min = cfg.SOP_HSS_MIN
+        self.dt_hss = cfg.DT_HSS
+        self.sop_hss_setpoint = cfg.SOP_HSS_SETPOINT
+        self.Y_hss = cfg.Y_HSS
+        self.sop_hss_threshold = cfg.SOP_HSS_THRESHOLD
+
+    def _get_index(self, scenario: int, time_step: int) -> int:
+        """Get index for scenario data based on time step and scenario seed."""
+        return scenario * self.T_num + time_step
