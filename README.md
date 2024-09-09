@@ -25,9 +25,10 @@ conda activate torchtf
 ```bash
 .
 ├── data/                                  # Directory for data
-│   ├── raw/                               # Raw input data
-│   ├── processed/                         # Processed datasets
-│   └── generated/                         # Generated datasets
+│   ├── generated/
+│   ├── processed/
+│   ├── raw/
+│   └── trajectories/
 └── src/
     ├── solver/
     │   ├── methods/
@@ -45,8 +46,9 @@ conda activate torchtf
     │   │   │   ├── hydrogen_storage.py
     │   │   │   ├── renewables.py
     │   │   │   └── utility_grid.py
-    │   │   ├── env.py                 # Hydrogen staion environment setup and management (for training & testing)
+    │   │   ├── env.py                     # Hydrogen staion environment setup and management (for training & testing)
     │   │   ├── hydrogen_station.py        # Microgrid optimization logic (for data generation)
+    │   │   ├── trajs_env.py
     │   │   └── util.py
     │   ├── utils/
     │   │   ├── __init__.py
@@ -60,6 +62,7 @@ conda activate torchtf
     │   ├── preprocessing_util.py
     │   ├── test_util.py
     │   └── train_util.py
+    ├── convert_trajs.py                   # Convert trajectories scripts
     ├── data_generation.py                 # Data generation scripts
     ├── preprocessing.py                   # Data preprocessing scripts
     ├── test_gail.py                       # Model testing scripts
@@ -83,7 +86,14 @@ Prepare the data for training by running the preprocessing script:
 python3 preprocessing.py
 ```
 
-### 3. Training the ResnesD Model
+### 3. Convert trajectories
+Convert the collected trajectories into the required format:
+
+```
+python3 convert_trajs.py
+```
+
+### 4. Training the ResnesD Model
 Train the ResnesD model using the generated data:
 
 ```
@@ -94,7 +104,7 @@ python3 train_gail.py --adversarial_algo gail --demo_batch_size 1024 \\
                       --learning_rate 0.0004 --gamma 0.95 --n_epochs 5 \\
 ```
 
-### 4. Testing the Model
+### 5. Testing the Model
 Test the trained model on the microgrid environment:
 
 ```
