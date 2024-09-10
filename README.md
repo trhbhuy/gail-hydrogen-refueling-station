@@ -2,15 +2,6 @@
 
 This repository contains the implementation for our paper: ["Robust real-time energy management for a hydrogen refueling station using generative adversarial imitation learning"](https://doi.org/10.1016/j.apenergy.2024.123847), published in the Applied Energy.
 
-<!-- ## Environment 
-
-- tensorflow: 2.0
-- torch: 1.9 -->
-
-<!-- ## Dataset
-We opensource in this repository the model used for the ISO-NE test case. Code for ResNetPlus model can be found in /ISO-NE/ResNetPlus_ISONE.py
-
-The dataset contains load and temperature data from 2003 to 2014. -->
 
 ## Setup 
 
@@ -132,5 +123,5 @@ If you find the code useful in your research, please consider citing our paper:
    year = {2024},
 }
 ```
-## License
-[MIT LICENSE](LICENSE)
+<!-- ## License
+[MIT LICENSE](LICENSE) -->

@@ -6,6 +6,7 @@ from stable_baselines3.common.vec_env import DummyVecEnv
 from imitation.data import rollout
 from imitation.data.wrappers import RolloutInfoWrapper
 from imitation.data import serialize
+
 from solver.platform.trajs_env import HydrogenEnv
 
 # Define base paths
@@ -138,7 +139,7 @@ def main(args):
     serialize.save(args.data_path, trajectories)
     logging.info(f"Trajectories saved at {args.data_path}.")
 
-#python3 src/test_gail.py
+#python3 src/convert_trajs.py
 if __name__ == '__main__':
     args = parse_args()
     main(args)

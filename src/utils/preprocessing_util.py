@@ -1,11 +1,9 @@
-# src/utils/preprocessing_util/.py
-
 import numpy as np
 import torch
-
-from .common_util import save_pickle, load_pickle
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.model_selection import train_test_split, KFold, StratifiedKFold
+
+from .common_util import save_pickle, load_pickle
 
 def scaling_data(data: np.ndarray, method: str ='MinMax', feature_range: tuple = (0, 1)) -> tuple:
     """

@@ -1,5 +1,3 @@
-# src/solver/utils/numeric_util.py
-
 def get_boundary_tolerance(value, lower_limit, upper_limit):
     """
     Calculate the boundary violation if the value is outside the specified limits.

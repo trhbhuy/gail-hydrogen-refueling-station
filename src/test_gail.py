@@ -2,9 +2,9 @@ import os
 import argparse
 import numpy as np
 import logging
-
 import stable_baselines3 as sb3
 from imitation.policies.serialize import load_stable_baselines_model
+
 from solver.platform.env import HydrogenEnv
 from utils.test_util import cal_metric, load_dataset
 
@@ -96,7 +96,7 @@ def evaluate(args, model, env, best_rewards):
     
     # Calculate evaluation metrics (e.g., MAE, MAPE) based on the true values and predictions
     metrics = cal_metric(best_rewards, predicted_rewards)
-    
+            
     # Print the evaluation results
     logging.info(f"Overall MAE: {metrics['overall_mae']:.4f}, Overall MAPE: {metrics['overall_mape']:.4f}%")
     

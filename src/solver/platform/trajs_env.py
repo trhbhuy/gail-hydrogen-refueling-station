@@ -1,9 +1,9 @@
 import os
 import logging
-import gymnasium as gym
-from gymnasium import spaces
 import numpy as np
 import random
+import gymnasium as gym
+from gymnasium import spaces
 
 from .. import config as cfg
 from ..methods.data_loader import load_data

@@ -1,5 +1,3 @@
-# src/utils/train_util.py
-
 import os
 import torch
 import numpy as np
